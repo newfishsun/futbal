@@ -8456,19 +8456,22 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
         function performKickEnt(ent, userCharge, zForce, mode = 'normal', customTarget = null, pkPrecision = null, fromRemotePvP = false) {
             if (!ent) return;
             if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'guest' && ent.isUser && !fromRemotePvP) {
+                guestKickLockTimer = 22;
                 sendH2HWsMessage({
                     type: 'pvp_action',
                     action: 'kick',
                     playerId: ent.id,
+                    kickerX: Math.round(ent.x),
+                    kickerY: Math.round(ent.y),
                     userCharge,
                     zForce,
                     mode,
                     pkPrecision,
-                    mouseX,
-                    mouseY,
+                    mouseX: Math.round(mouseX),
+                    mouseY: Math.round(mouseY),
                     setPieceCamPanY
                 });
-                // Do NOT return early — execute the kick locally right now so Guest has 0ms shot/pass delay!
+                // Execute the kick locally right now so Guest has 0ms shot/pass delay!
             }
             const isShotActionForSecret = (mode === 'shot' || mode === 'knuckleball' || mode === 'power_shot' || (mode === 'finesse_shot' && ent.isUser));
             if (isShotActionForSecret && isJacksonSecretBuffActive(ent)) {
@@ -9246,8 +9249,9 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 reqAnimFrame = requestAnimationFrame(gameLoop);
                 if (activeMatchMode === 'h2h_online') {
                     pvpHostBackupInterval = setInterval(() => {
-                        if (gameState === 'playing' && document.hidden) {
-                            updateFixed90Hz();
+                        if (document.hidden) {
+                            if (gameState === 'playing') updateFixed90Hz();
+                            else if (gameState === 'celebrating') updateCelebration90Hz();
                         }
                     }, 16);
                 }
@@ -10674,6 +10678,20 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (!msg || !msg.action) return;
             const targetPlayer = (msg.playerId ? players.find(p => p.id === msg.playerId) : null) || remoteActivePlayer;
 
+            if (msg.action === 'skip_celebration') {
+                if (gameState === 'celebrating' || gameState === 'replay') {
+                    finishGoalSequenceAndShowOverlay();
+                }
+                return;
+            }
+            if (msg.action === 'claim_goal' && gameState === 'playing') {
+                if (msg.scorerId) {
+                    const sp = players.find(p => p.id === msg.scorerId);
+                    if (sp) ball.lastTouchPlayer = sp;
+                }
+                scoreGoal(msg.teamIndex ?? 1);
+                return;
+            }
             if (msg.action === 'switch' && msg.targetId) {
                 const found = players.find(p => p.id === msg.targetId && p.team === 1);
                 if (found) remoteActivePlayer = found;
@@ -10712,9 +10730,18 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             }
 
             if (msg.action === 'kick') {
-                const kicker = (ball.possessor && ball.possessor.team === 1) ? ball.possessor : targetPlayer;
+                const kicker = (msg.playerId ? players.find(p => p.id === msg.playerId && p.team === 1) : null)
+                    || (ball.possessor && ball.possessor.team === 1 ? ball.possessor : targetPlayer);
                 if (!kicker) return;
+                if (typeof msg.kickerX === 'number' && typeof msg.kickerY === 'number') {
+                    kicker.x = msg.kickerX;
+                    kicker.y = msg.kickerY;
+                }
                 ball.possessor = kicker;
+                ball.lastTouchPlayer = kicker;
+                ball.lastTouchTeam = 1;
+                ball.x = kicker.x + (kicker.facingX || -1) * 14;
+                ball.y = kicker.y + (kicker.facingY || 0) * 14;
                 const savedMx = mouseX;
                 const savedMy = mouseY;
                 const savedPanY = setPieceCamPanY;
@@ -10728,12 +10755,14 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 mouseX = savedMx;
                 mouseY = savedMy;
                 setPieceCamPanY = savedPanY;
-                broadcastHostPvPState();
+                broadcastHostPvPState(true);
                 return;
             }
         }
 
-        function broadcastHostPvPState() {
+        let guestKickLockTimer = 0;
+
+        function broadcastHostPvPState(forceSnap = false) {
             if (activeMatchMode !== 'h2h_online' || onlinePvPRole !== 'host') return;
             const pArr = players.map(p => [
                 p.id,
@@ -10771,6 +10800,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 sc: [score.home, score.away],
                 min: matchMinute,
                 per: matchPeriod,
+                gs: gameState,
+                snap: forceSnap ? 1 : 0,
                 hId: activePlayer ? activePlayer.id : null
             });
         }
@@ -10778,21 +10809,31 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
         function applyHostPvPStateSnapshot(msg) {
             if (!msg || !msg.b || !Array.isArray(msg.p)) return;
             const [bx, by, bz, bvx, bvy, bvz, possId, lastTouch] = msg.b;
-            const newPoss = possId ? (players.find(pl => pl.id === possId) || null) : null;
+            const forceSnap = Boolean(msg.snap);
+            let newPoss = possId ? (players.find(pl => pl.id === possId) || null) : null;
+            // If Guest just kicked the ball locally within the last 22 ticks, ignore stale possId from Host packets in flight before the kick!
+            if (guestKickLockTimer > 0 && newPoss && newPoss.team === 1) {
+                newPoss = null;
+            }
             ball.possessor = newPoss;
             ball.lastTouchTeam = lastTouch;
+            if (newPoss) ball.lastTouchPlayer = newPoss;
 
-            // If Guest's own activePlayer doesn't currently hold the ball, update ball from Host smoothly
-            if (!newPoss || newPoss !== activePlayer) {
-                ball.x = ball.x + (bx - ball.x) * 0.65;
-                ball.y = ball.y + (by - ball.y) * 0.65;
+            if (!newPoss || newPoss !== activePlayer || forceSnap) {
+                if (forceSnap || Math.hypot(bx - ball.x, by - ball.y) > 160) {
+                    ball.x = bx;
+                    ball.y = by;
+                } else {
+                    ball.x = ball.x + (bx - ball.x) * 0.72;
+                    ball.y = ball.y + (by - ball.y) * 0.72;
+                }
                 ball.z = bz;
                 ball.vx = bvx;
                 ball.vy = bvy;
                 ball.vz = bvz;
             }
 
-            const isSetPieceActive = Boolean(newPoss && newPoss.setPieceTimer > 0);
+            const isSetPieceActive = Boolean(forceSnap || (newPoss && newPoss.setPieceTimer > 0) || gameState === 'celebrating');
 
             msg.p.forEach(row => {
                 const pl = players.find(x => x.id === row[0]);
@@ -10801,8 +10842,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 const sy = row[2];
                 const distErr = Math.hypot(sx - pl.x, sy - pl.y);
 
-                // Never rubber-band Guest's own actively controlled player unless teleported (>220 units) or on a set piece!
-                if (pl === activePlayer && !isSetPieceActive && distErr < 220) {
+                // Never rubber-band Guest's own actively controlled player during open play unless forceSnap/set-piece or large teleport!
+                if (pl === activePlayer && !isSetPieceActive && distErr < 220 && gameState === 'playing') {
                     pl.setPieceTimer = row[14] || 0;
                     pl.setPieceType = row[15] || '';
                     pl.gkHandsPossession = Boolean(row[16]);
@@ -10810,12 +10851,12 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     return;
                 }
 
-                if (distErr > 180 || isSetPieceActive) {
+                if (distErr > 160 || isSetPieceActive) {
                     pl.x = sx;
                     pl.y = sy;
                 } else {
-                    pl.x += (sx - pl.x) * 0.45;
-                    pl.y += (sy - pl.y) * 0.45;
+                    pl.x += (sx - pl.x) * 0.50;
+                    pl.y += (sy - pl.y) * 0.50;
                 }
                 pl.vx = row[3];
                 pl.vy = row[4];
@@ -10856,11 +10897,33 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (msg.eventType === 'toast' && msg.text) {
                 showMatchToast(msg.text);
             } else if (msg.eventType === 'goal') {
+                if (msg.scorerId) {
+                    const sp = players.find(p => p.id === msg.scorerId);
+                    if (sp) ball.lastTouchPlayer = sp;
+                }
+                if (msg.assistId) {
+                    const ap = players.find(p => p.id === msg.assistId);
+                    if (ap) ball.previousTouchPlayer = ap;
+                }
+                if (gameState === 'playing') {
+                    scoreGoal(msg.teamIndex ?? 0, true);
+                }
                 score.home = msg.homeScore;
                 score.away = msg.awayScore;
                 if (Array.isArray(msg.matchGoals)) matchGoals = msg.matchGoals;
                 updateScoreUI();
-                showMatchToast(msg.bannerText || '⚽ GOAL!');
+            } else if (msg.eventType === 'kickoff_reset') {
+                score.home = msg.homeScore ?? score.home;
+                score.away = msg.awayScore ?? score.away;
+                if (typeof msg.matchMinute === 'number') matchMinute = msg.matchMinute;
+                if (typeof msg.halfTimeReached === 'boolean') halfTimeReached = msg.halfTimeReached;
+                updateScoreUI();
+                updateTimerUI();
+                resetKickoff(msg.teamPossession ?? 0, true);
+            } else if (msg.eventType === 'halftime') {
+                if (gameState !== 'halftime') {
+                    triggerHalfTime(true);
+                }
             } else if (msg.eventType === 'fulltime') {
                 score.home = msg.homeScore;
                 score.away = msg.awayScore;
@@ -11802,8 +11865,15 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
         function startMatch(mode = 'friendly') {
             pauseSoundtrackForMatch();
-            rollRandomTimeOfDay();
             activeMatchMode = mode;
+            if (mode === 'h2h_online' && onlineMatchRoom) {
+                activeFieldTheme = onlineMatchRoom.fieldTheme || 'classic_stripes';
+                activeTimeOfDay = onlineMatchRoom.timeOfDay || 'day';
+                updateTimeOfDayBadgeUI();
+                updateFieldBadgeUI();
+            } else {
+                rollRandomTimeOfDay();
+            }
             let validPlayers = currentSquad.filter(id => id !== null);
             if (validPlayers.length < 1) {
                 autoFillBestSquad();
@@ -11899,6 +11969,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 startCrowdAmbience();
                 if (activeMatchMode === 'ucl' && uclState && uclState.stage === 'final') {
                     triggerUCLFinalWalkoutIntro();
+                } else if (activeMatchMode === 'h2h_online') {
+                    resetKickoff(0, true);
                 } else {
                     resetKickoff(0);
                 }
@@ -11937,8 +12009,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             document.getElementById('match-timer').innerText = matchMinute.toString().padStart(2, '0') + suffix;
         }
 
-        function triggerHalfTime() {
+        function triggerHalfTime(fromNetworkSync = false) {
             halfTimeReached = true;
+            if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host' && !fromNetworkSync) {
+                sendH2HWsMessage({ type: 'pvp_event', eventType: 'halftime' });
+            }
             waitingForHalfTimeWhistle = false;
             stoppageMinutes = 0;
             if (matchMinute > 45) matchMinute = 45;
@@ -11975,6 +12050,18 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     startNextSubAnimation();
                 } else {
                     resetKickoff(1, true);
+                    if (activeMatchMode === 'h2h_online') {
+                        sendH2HWsMessage({
+                            type: 'pvp_event',
+                            eventType: 'kickoff_reset',
+                            teamPossession: 1,
+                            homeScore: score.home,
+                            awayScore: score.away,
+                            matchMinute: 45,
+                            halfTimeReached: true
+                        });
+                        if (onlinePvPRole === 'host') broadcastHostPvPState(true);
+                    }
                 }
             };
         }
@@ -12467,7 +12554,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 ball.lastTouchTeam = teamPossession;
                 ball.x = closest.x + closest.facingX * 18;
                 ball.y = CH/2;
-                if (teamPossession === 0) activePlayer = closest;
+                if (closest.isUser) activePlayer = closest;
+                else if (activeMatchMode === 'h2h_online') remoteActivePlayer = closest;
             }
 
             if (autoStart) {
@@ -12636,6 +12724,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 const badge = document.getElementById('setpiece-badge');
                 badge.innerText = `THROW-IN (${taker.name}): R-CLICK / E TO THROW`;
                 badge.classList.remove('hidden');
+            } else if (activeMatchMode === 'h2h_online') {
+                remoteActivePlayer = taker;
+            }
+            if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host') {
+                broadcastHostPvPState(true);
             }
         }
 
@@ -12731,6 +12824,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 const badge = document.getElementById('setpiece-badge');
                 badge.innerText = `CORNER KICK (${taker.name}): E FOR CROSS / R-CLICK PASS`;
                 badge.classList.remove('hidden');
+            } else if (activeMatchMode === 'h2h_online') {
+                remoteActivePlayer = taker;
+            }
+            if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host') {
+                broadcastHostPvPState(true);
             }
         }
 
@@ -13555,7 +13653,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 return;
             }
             if (k === 'z' && (gameState === 'celebrating' || gameState === 'replay')) {
-                finishGoalSequenceAndShowOverlay();
+                if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'guest') {
+                    sendH2HWsMessage({ type: 'pvp_action', action: 'skip_celebration' });
+                } else {
+                    finishGoalSequenceAndShowOverlay();
+                }
                 return;
             }
 
@@ -14849,7 +14951,9 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
             if (celebrationTimer >= 165) {
                 players.forEach(p => { p.celebrationJump = 0; p.celPose = 0; p.celTick = 0; });
-                if (replayBuffer.length > 20) {
+                if (activeMatchMode === 'h2h_online') {
+                    finishGoalSequenceAndShowOverlay();
+                } else if (replayBuffer.length > 20) {
                     gameState = 'replay';
                     replayPlaybackIdx = 0;
                     const badge = document.getElementById('goal-cinema-badge');
@@ -14857,6 +14961,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 } else {
                     finishGoalSequenceAndShowOverlay();
                 }
+            } else if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host' && celebrationTimer % 2 === 0) {
+                broadcastHostPvPState(false);
             }
         }
 
@@ -14898,12 +15004,29 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
         function finishGoalSequenceAndShowOverlay() {
             players.forEach(p => { p.celebrationJump = 0; p.celPose = 0; p.celTick = 0; p.vx = 0; p.vy = 0; });
-            gameState = 'goal';
             const cinemaHud = document.getElementById('goal-cinema-hud');
             if (cinemaHud) {
                 cinemaHud.classList.add('hidden');
                 cinemaHud.classList.remove('flex');
             }
+            if (activeMatchMode === 'h2h_online') {
+                if (onlinePvPRole === 'host') {
+                    const concedingTeam = (pendingGoalTeam === 0) ? 1 : 0;
+                    resetKickoff(concedingTeam, true);
+                    sendH2HWsMessage({
+                        type: 'pvp_event',
+                        eventType: 'kickoff_reset',
+                        teamPossession: concedingTeam,
+                        homeScore: score.home,
+                        awayScore: score.away,
+                        matchMinute,
+                        halfTimeReached
+                    });
+                    broadcastHostPvPState(true);
+                }
+                return;
+            }
+            gameState = 'goal';
             document.getElementById('match-overlay').classList.remove('hidden');
             document.getElementById('match-message').innerText = `⚽ ${pendingGoalScorerName}`;
             renderOverlayScorersSummary();
@@ -14920,6 +15043,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
             // Online PvP Guest Mode: Run 90Hz zero-delay local movement & ball extrapolation + send authoritative activePlayer position to Host!
             if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'guest') {
+                if (guestKickLockTimer > 0) guestKickLockTimer--;
                 if (isCharging && ball.possessor && ball.possessor.isUser) {
                     const isFK = ball.possessor.setPieceTimer > 0 && ball.possessor.setPieceType === 'free_kick';
                     const chargeRate = isFK ? 0.013 : 0.032;
@@ -14992,6 +15116,14 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     if (ball.z > 0 || ball.vz > 0) {
                         ball.z = Math.max(0, (ball.z || 0) + (ball.vz || 0));
                         ball.vz = (ball.vz || 0) - 0.14;
+                    }
+                    if (activePlayer && activePlayer.cooldown <= 0 && (ball.z || 0) < 35 && Math.hypot(ball.x - activePlayer.x, ball.y - activePlayer.y) < PLAYER_RADIUS + BALL_RADIUS + 15) {
+                        ball.possessor = activePlayer;
+                        ball.lastTouchPlayer = activePlayer;
+                        ball.lastTouchTeam = 1;
+                        ball.vx = 0; ball.vy = 0; ball.vz = 0;
+                    } else if (ball.x <= 0 && isInsideGoalY(ball.y) && (ball.z || 0) < 78) {
+                        sendH2HWsMessage({ type: 'pvp_action', action: 'claim_goal', teamIndex: 1, scorerId: ball.lastTouchPlayer ? ball.lastTouchPlayer.id : (activePlayer ? activePlayer.id : null) });
                     }
                 }
                 pvpSyncTick++;
@@ -17558,14 +17690,13 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             }
         }
 
-        function scoreGoal(teamIndex) {
+        function scoreGoal(teamIndex, fromNetworkSync = false) {
             if (gameState !== 'playing') return;
             recordReplayFrame();
             gameState = 'celebrating';
             accumulator = 0;
             isCharging = false;
-            setPieceCamLingering = 0; // Immediately exit Free Kick / Penalty camera on goal!
-            // Keep natural ball velocity as it crosses the goal line so it flies all the way into the net, hits the mesh, and drops to the turf!
+            setPieceCamLingering = 0;
             ball.hasHitBackNet = false; ball.hasHitSideNet = false;
             ball.inGoalNetLeft = false; ball.inGoalNetRight = false;
             ball.netSettleTicks = 0;
@@ -17573,18 +17704,6 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
             if (teamIndex === 0) score.home++;
             else score.away++;
-            if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host' && h2hWsConnected) {
-                setTimeout(() => {
-                    sendH2HWsMessage({
-                        type: 'pvp_event',
-                        eventType: 'goal',
-                        homeScore: score.home,
-                        awayScore: score.away,
-                        matchGoals,
-                        bannerText: `⚽ GOAL! ${score.home} - ${score.away}`
-                    });
-                }, 40);
-            }
 
             players.forEach(pl => {
                 if (pl.team !== teamIndex) {
@@ -17732,6 +17851,19 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 cinemaScorer.innerText = `⚽ ${scorerDisplayName} (${goalMin}')`;
                 cinemaHud.classList.remove('hidden');
                 cinemaHud.classList.add('flex');
+            }
+            if (activeMatchMode === 'h2h_online' && onlinePvPRole === 'host' && !fromNetworkSync) {
+                sendH2HWsMessage({
+                    type: 'pvp_event',
+                    eventType: 'goal',
+                    teamIndex,
+                    scorerId: scorerPlayer ? scorerPlayer.id : null,
+                    assistId: assistPlayer ? assistPlayer.id : null,
+                    homeScore: score.home,
+                    awayScore: score.away,
+                    matchGoals
+                });
+                broadcastHostPvPState(true);
             }
         }
 
