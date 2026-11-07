@@ -474,13 +474,25 @@ const server = http.createServer((req, res) => {
         pathname = '/football_rng_legends_v2.html';
     }
 
-    const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
-    const filePath = path.join(__dirname, safePath);
+    const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '').replace(/^[\/\\]+/, '');
+    let filePath = path.join(__dirname, safePath);
+
+    // Fallback: if user uploaded files inside a subfolder or if index.html is requested, auto-locate it
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+        const subdirs = fs.readdirSync(__dirname, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
+        for (const sub of subdirs) {
+            const candidate = path.join(__dirname, sub, safePath);
+            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+                filePath = candidate;
+                break;
+            }
+        }
+    }
 
     fs.stat(filePath, (err, stats) => {
         if (err || !stats.isFile()) {
             res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-            res.end('404 Not Found');
+            res.end('404 Not Found: Make sure football_rng_legends_v2.html is uploaded to your repo.');
             return;
         }
         const ext = path.extname(filePath).toLowerCase();

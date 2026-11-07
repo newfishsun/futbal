@@ -3,7 +3,7 @@ services:
     name: football-rng-legends-v2
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: node -v
     startCommand: node server.js
     healthCheckPath: /healthz
     envVars:
