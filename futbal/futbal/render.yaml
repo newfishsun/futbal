@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: football-rng-legends-v2
+    env: node
+    plan: free
+    buildCommand: echo "Build Ready"
+    startCommand: node $(find . -maxdepth 3 -name "server.js" | head -n 1)
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
