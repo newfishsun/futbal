@@ -6,6 +6,7 @@
     <title>Football RNG Legends V2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -1577,6 +1578,7 @@
 
             // Club Dynasty (Sorted Highest OVR -> Lowest OVR)
             { rarity: "club-dynasty", name: "C. Ronaldo", club: "MANU", clubs: ["MANU", "RMA"], pos: "LW", roles: ["LW", "ST"], ovr: 99, pac: 97, sho: 99, pas: 93, dri: 99, def: 52, phy: 96 },
+            { rarity: "club-dynasty", name: "F. Beckenbauer", club: "BAY", pos: "CB", roles: ["CB", "CDM"], ovr: 99, pac: 92, sho: 84, pas: 96, dri: 91, def: 99, phy: 95 },
             { rarity: "club-dynasty", name: "A. Di Stéfano", club: "RMA", pos: "CF", roles: ["CF", "RW", "ST", "CAM"], ovr: 99, pac: 96, sho: 99, pas: 97, dri: 98, def: 78, phy: 92 },
             { rarity: "club-dynasty", name: "D. Maradona", club: "NAP", pos: "CAM", roles: ["CAM", "CF", "RW"], ovr: 99, pac: 95, sho: 98, pas: 99, dri: 99, def: 48, phy: 84 },
             { rarity: "club-dynasty", name: "G. Müller", club: "BAY", pos: "ST", roles: ["ST", "CF"], ovr: 99, pac: 93, sho: 99, pas: 88, dri: 96, def: 52, phy: 92 },
@@ -1677,6 +1679,7 @@
             { rarity: "influencer", name: "Antony (2008)", pos: "RW", roles: ["RW", "RM", "LW"], ovr: 99, pac: 99, sho: 97, pas: 99, dri: 99, def: 40, phy: 58 },
             { rarity: "influencer", name: "Jackson (2012)", pos: "ST", roles: ["ST", "CF", "LW"], ovr: 99, pac: 96, sho: 99, pas: 87, dri: 92, def: 38, phy: 99 },
             { rarity: "influencer", name: "Mudryk (2012)", pos: "LW", roles: ["LW", "LM", "RW"], ovr: 99, pac: 99, sho: 99, pas: 91, dri: 99, def: 47, phy: 88 },
+            { rarity: "influencer", name: "Choucha (Prime)", pos: "LW", roles: ["LW", "LM", "RW"], ovr: 99, pac: 99, sho: 99, pas: 81, dri: 99, def: 42, phy: 80 },
             { rarity: "influencer", name: "IShowSpeed", pos: "ST", ovr: 90, pac: 99, sho: 70, pas: 75, dri: 78, def: 60, phy: 81 },
             { rarity: "influencer", name: "KSI", pos: "GK", ovr: 90, div: 82, han: 88, kic: 71, ref: 84, spd: 75, gkPos: 87, pac: 82, sho: 88, pas: 71, dri: 84, def: 75, phy: 87 },
             { rarity: "influencer", name: "Max Fosh", pos: "CB", ovr: 90, pac: 72, sho: 80, pas: 65, dri: 77, def: 85, phy: 87 },
@@ -2146,7 +2149,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (lowerName.includes('ward-prowse') || lowerName.includes('chunkz')) return target === 'CM' || target === 'CAM';
             if (lowerName.includes('mrbeast')) return target === 'CB' || target === 'CM';
             if (lowerName.includes('kai cenat')) return target === 'LW' || target === 'RW' || target === 'ST' || target === 'CAM' || target === 'CF';
-            if (lowerName.includes('mudryk (2012)')) return target === 'LW' || target === 'LM' || target === 'RW';
+            if (lowerName.includes('mudryk (2012)') || lowerName.includes('choucha')) return target === 'LW' || target === 'LM' || target === 'RW';
             if (lowerName.includes('zico')) return target === 'CAM' || target === 'CF';
             if (cardPos === target) return true;
             if (cardPos === 'CF' && (target === 'ST' || target === 'CAM' || target === 'CF')) return true;
@@ -2437,12 +2440,14 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (n.includes('antony (2008)')) return ["Samba"];
             if (n.includes('jackson (2012)')) return ["Speedster"];
             if (n.includes('mudryk (2012)')) return ["Speedster"];
+            if (n.includes('choucha')) return ["Precision Shot"];
             const isUltra = resolvedRarity === 'ultra' || n.includes('(goat)');
             const isIntlMoments = resolvedRarity === 'intl-moments' || (resolvedRarity !== 'influencer' && /\(\d{4}\)/.test(n));
             const isClubDynasty = resolvedRarity === 'club-dynasty' || Boolean(stats && stats.club);
 
             if (isClubDynasty) {
                 if (n.includes('ronaldo') || n.includes('cristiano')) return ["Power Shot", "Composed Taker"];
+                if (n.includes('beckenbauer')) return ["Leadership", "Advanced Tackler"];
                 if (n.includes('di stéfano') || n.includes('di stefano')) return ["Precision Shot", "Engine"];
                 if (n.includes('maradona')) return ["First Touch", "Dribbler"];
                 if (n.includes('g. müller') || n.includes('gerd')) return ["Space Finder", "Precision Shot"];
@@ -5734,7 +5739,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (n.includes('neymar') || n.includes('marcelo') || n.includes('antony') || n.includes('doué') || n.includes('quaresma') || n.includes('taarabt') || n.includes('ben arfa') || n.includes('dani alves') || n.includes('saint-maximin') || n.includes('maximin')) {
                 return 'rainbow';
             }
-            if (n.includes('best') || n.includes('garrincha') || n.includes('chiesa') || n.includes('figo') || n.includes('nedvěd') || n.includes('nedved') || n.includes('zé roberto') || n.includes('ze roberto') || n.includes('vinicius') || n.includes('doku') || n.includes('dembélé') || n.includes('raphinha') || n.includes('grealish') || n.includes('ginola') || n.includes('garnacho') || n.includes('rashford') || n.includes('neto') || n.includes('gervinho') || n.includes('mudryk') || n.includes('cole') || n.includes('arshavin') || n.includes('frimpong')) {
+            if (n.includes('best') || n.includes('garrincha') || n.includes('chiesa') || n.includes('figo') || n.includes('nedvěd') || n.includes('nedved') || n.includes('zé roberto') || n.includes('ze roberto') || n.includes('vinicius') || n.includes('doku') || n.includes('dembélé') || n.includes('raphinha') || n.includes('grealish') || n.includes('ginola') || n.includes('garnacho') || n.includes('rashford') || n.includes('neto') || n.includes('gervinho') || n.includes('mudryk') || n.includes('choucha') || n.includes('cole') || n.includes('arshavin') || n.includes('frimpong')) {
                 return 'stepover';
             }
             if (n.includes('hagi') || n.includes('g. müller') || n.includes('zico') || n.includes('cruyff') || n.includes('cryuff') || n.includes('di stéfano') || n.includes('di stefano') || n.includes('messi') || n.includes('maradona') || n.includes('hazard') || n.includes('salah') || n.includes('pelé') || n.includes('kaká') || n.includes('baggio') || n.includes('neves') || n.includes('suárez') || n.includes('suarez') || n.includes('özil') || n.includes('ozil')) {
@@ -5764,7 +5769,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (n.includes('neymar') || n.includes('marcelo') || n.includes('antony') || n.includes('doué') || n.includes('quaresma') || n.includes('taarabt') || n.includes('ben arfa') || n.includes('dani alves') || n.includes('saint-maximin') || n.includes('maximin')) {
                 return 'rainbow';
             }
-            if (n.includes('jairzinho') || n.includes('best') || n.includes('garrincha') || n.includes('chiesa') || n.includes('figo') || n.includes('nedvěd') || n.includes('nedved') || n.includes('zé roberto') || n.includes('ze roberto') || n.includes('vinicius') || n.includes('doku') || n.includes('dembélé') || n.includes('raphinha') || n.includes('grealish') || n.includes('ginola') || n.includes('garnacho') || n.includes('rashford') || n.includes('neto') || n.includes('gervinho') || n.includes('mudryk') || n.includes('cole') || n.includes('arshavin') || n.includes('frimpong')) {
+            if (n.includes('jairzinho') || n.includes('best') || n.includes('garrincha') || n.includes('chiesa') || n.includes('figo') || n.includes('nedvěd') || n.includes('nedved') || n.includes('zé roberto') || n.includes('ze roberto') || n.includes('vinicius') || n.includes('doku') || n.includes('dembélé') || n.includes('raphinha') || n.includes('grealish') || n.includes('ginola') || n.includes('garnacho') || n.includes('rashford') || n.includes('neto') || n.includes('gervinho') || n.includes('mudryk') || n.includes('choucha') || n.includes('cole') || n.includes('arshavin') || n.includes('frimpong')) {
                 return 'stepover';
             }
             if (n.includes('rivaldo') || n.includes('cruyff') || n.includes('cryuff') || n.includes('di stéfano') || n.includes('di stefano') || n.includes('messi') || n.includes('maradona') || n.includes('hazard') || n.includes('salah') || n.includes('pelé') || n.includes('kaká') || n.includes('baggio') || n.includes('neves') || n.includes('suárez') || n.includes('suarez') || n.includes('özil') || n.includes('ozil')) {
@@ -5815,6 +5820,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (n.includes('antony (2008)')) return 'antony_2008';
             if (n.includes('jackson (2012)')) return 'jackson_2012';
             if (n.includes('mudryk (2012)')) return 'mudryk_2012';
+            if (n.includes('choucha')) return 'choucha_prime';
             return 'all_99';
         }
 
@@ -5828,6 +5834,10 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
 
         function isMudrykSecretBuffActive(player) {
             return Boolean(player && player.isInfluencer && player.secretBuffActive && player.secretBuffMinutesLeft > 0 && getSecretBuffType(player) === 'mudryk_2012');
+        }
+
+        function isChouchaSecretBuffActive(player) {
+            return Boolean(player && player.isInfluencer && player.secretBuffActive && player.secretBuffMinutesLeft > 0 && getSecretBuffType(player) === 'choucha_prime');
         }
 
         function addSecretGauge(player, amount, actionLabel = "") {
@@ -5855,6 +5865,9 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 } else if (buffType === 'mudryk_2012') {
                     player.secretBuffMinutesLeft = 15;
                     showMatchToast(`⚡👟 ${player.name.toUpperCase()} SECRET GAUGE FULL — FULL-SPEED STEPOVERS & BOOSTED FLAT SHOT POWER FOR 15 MINS!`);
+                } else if (buffType === 'choucha_prime') {
+                    player.secretBuffMinutesLeft = 15;
+                    showMatchToast(`🎯🔥 ${player.name.toUpperCase()} SECRET GAUGE FULL — TOP-BINS FINESSE SHOT HEIGHT FOR 15 MINS!`);
                 } else {
                     player.secretBuffMinutesLeft = 15;
                     player.stats = {
@@ -8646,9 +8659,12 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 const aimTargetY = ent.isUser ? (mouseY + setPieceCamPanY) : (ent.y + dy);
                 const fkBallistics = computeFreeKickBallistics(ent, finalSpeedMult, mode, aimTargetX, aimTargetY);
                 const mudrykFkFlatBoost = isMudrykSecretBuffActive(ent) ? 1.15 : 1.0;
+                const chouchaFkTopBinVz = (isChouchaSecretBuffActive(ent) && mode === 'finesse_shot')
+                    ? Math.max(3.25, Math.min(3.82, fkBallistics.vz * 1.14))
+                    : fkBallistics.vz;
                 ball.vx = fkBallistics.vx * mudrykFkFlatBoost;
                 ball.vy = fkBallistics.vy * mudrykFkFlatBoost;
-                ball.vz = fkBallistics.vz;
+                ball.vz = chouchaFkTopBinVz;
                 ball.spin = fkBallistics.spin;
                 ball.isKnuckleball = Boolean(fkBallistics.knuckle);
                 // Lift ball on initial strike so it immediately clears the turf and rises high over the defensive wall
@@ -8726,7 +8742,22 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     const openCurlAngle = Math.atan2(dy, dx) - curveDir * curveAngle;
                     dx = Math.cos(openCurlAngle) * dist;
                     dy = Math.sin(openCurlAngle) * dist;
-                    if (ent.isUser) showMatchToast(hasTrait(ent, 'Trivela') ? `🌀 ${ent.name.split(' ').pop().toUpperCase()} — TRIVELA CURL SHOT!` : `🎯 ${ent.name.split(' ').pop().toUpperCase()} — FINESSE SHOT!`);
+                    if (isChouchaSecretBuffActive(ent)) {
+                        // Choucha (Prime) Secret Gauge Full: Calibrate vertical lift & upper-90 corner trajectory so finesse shots hit top bins!
+                        speed = Math.max(17.8, speed * 1.08);
+                        const topBinFlightTicks = Math.max(15, distToGoal / speed);
+                        const idealTopBinVz = 0.07 * topBinFlightTicks + (52 / topBinFlightTicks);
+                        zForce = Math.max(2.08, Math.min(2.68, idealTopBinVz));
+                        const topBinCornerY = goalCenterY + (shooterSideSign < 0 ? -124 : 124);
+                        const aimedDx = targetGoalX - ent.x;
+                        const aimedDy = (targetY * 0.28 + topBinCornerY * 0.72) - ent.y;
+                        const topBinCurlAngle = Math.atan2(aimedDy, aimedDx) - curveDir * curveAngle;
+                        dx = Math.cos(topBinCurlAngle) * dist;
+                        dy = Math.sin(topBinCurlAngle) * dist;
+                        if (ent.isUser) showMatchToast(`🎯🔥 CHOUCHA (PRIME) — TOP-BINS FINESSE SHOT!`);
+                    } else if (ent.isUser) {
+                        showMatchToast(hasTrait(ent, 'Trivela') ? `🌀 ${ent.name.split(' ').pop().toUpperCase()} — TRIVELA CURL SHOT!` : `🎯 ${ent.name.split(' ').pop().toUpperCase()} — FINESSE SHOT!`);
+                    }
                 } else if (mode === 'chip_shot') {
                     speed = Math.max(ent.isUser ? 9.2 : 11.8, (stat / 14.5) * finalSpeedMult * 1.08);
                     zForce = Math.max(3.6, Math.min(4.6, userCharge * 3.15));
@@ -10170,6 +10201,9 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
         const H2H_STORAGE_KEY = 'football_rng_h2h_online_v3';
         let h2hWs = null;
         let h2hWsConnected = false;
+        let h2hPeer = null;
+        let h2hPeerConn = null;
+        let h2hPeerConnected = false;
         let h2hLocalBus = null;
         let h2hLocalPeers = new Map(); // clientId -> peer profile (fallback when testing across tabs without node server)
         let h2hMyClientId = 'p_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -10405,10 +10439,133 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             handleH2HServerMessage({ ...basePayload, role: 'host', teamIndex: 0 });
         }
 
+        function attachCloudPeerConnection(conn, isHostSide) {
+            h2hPeerConn = conn;
+            conn.on('open', () => {
+                h2hPeerConnected = true;
+                updateH2HConnectionHeaderUI();
+                if (!isHostSide) {
+                    // Guest sends profile to Host so Host immediately launches the synchronized 1v1 match!
+                    conn.send({ type: 'cloud_p2p_hello', profile: getMyProfilePacket() });
+                }
+            });
+            conn.on('data', (data) => {
+                if (!data || typeof data !== 'object') return;
+                if (data.type === 'cloud_p2p_hello' && isHostSide && data.profile) {
+                    startCloudPeerMatchWithGuest(data.profile);
+                } else if (data.type === 'cloud_p2p_match_start') {
+                    handleH2HServerMessage(data.payload);
+                } else {
+                    handleH2HServerMessage(data);
+                }
+            });
+            conn.on('close', () => {
+                h2hPeerConnected = false;
+                h2hPeerConn = null;
+                updateH2HConnectionHeaderUI();
+                if (activeMatchMode === 'h2h_online' && gameState !== 'menu' && gameState !== 'fulltime') {
+                    handleH2HServerMessage({ type: 'opponent_left', reason: 'Opponent disconnected' });
+                }
+            });
+        }
+
+        function startCloudPeerMatchWithGuest(guestProfile) {
+            if (!h2hPeerConn) return;
+            h2hInQueue = false;
+            h2hCreatedRoomCode = null;
+            const myProf = getMyProfilePacket();
+            const roomId = 'cloud_' + Date.now();
+            const fieldKeys = ['classic_stripes', 'diamond_cut', 'bullseye_rings', 'cyber_neon', 'samba_carnival', 'alpine_frost'];
+            const timeKeys = ['day', 'evening', 'night'];
+            const chosenField = (selectedFieldPref && selectedFieldPref !== 'random') ? selectedFieldPref : fieldKeys[Math.floor(Math.random() * fieldKeys.length)];
+            const chosenTime = (selectedTimeOfDayPref && selectedTimeOfDayPref !== 'random') ? selectedTimeOfDayPref : timeKeys[Math.floor(Math.random() * timeKeys.length)];
+
+            const basePayload = {
+                type: 'match_start',
+                roomId,
+                code: 'CLOUD',
+                fieldTheme: chosenField,
+                timeOfDay: chosenTime,
+                homePlayer: { ...myProf, kitColor: 0x3b82f6, gkColor: 0xf59e0b },
+                awayPlayer: { ...guestProfile, kitColor: 0xef4444, gkColor: 0x10b981 }
+            };
+            try {
+                h2hPeerConn.send({
+                    type: 'cloud_p2p_match_start',
+                    payload: { ...basePayload, role: 'guest', teamIndex: 1 }
+                });
+            } catch (e) {}
+            handleH2HServerMessage({ ...basePayload, role: 'host', teamIndex: 0 });
+        }
+
+        function hostCloudRoomOnPeerJS(code) {
+            if (typeof Peer === 'undefined') return;
+            try {
+                if (h2hPeer) { h2hPeer.destroy(); h2hPeer = null; }
+                const peerId = 'frng-v2-room-' + String(code).trim().toLowerCase();
+                const peer = new Peer(peerId);
+                h2hPeer = peer;
+                peer.on('open', () => {
+                    updateH2HConnectionHeaderUI();
+                });
+                peer.on('connection', (conn) => {
+                    attachCloudPeerConnection(conn, true);
+                });
+            } catch (e) {}
+        }
+
+        function joinCloudRoomOnPeerJS(code) {
+            if (typeof Peer === 'undefined') return;
+            try {
+                if (h2hPeer) { h2hPeer.destroy(); h2hPeer = null; }
+                const peer = new Peer();
+                h2hPeer = peer;
+                peer.on('open', () => {
+                    const targetPeerId = 'frng-v2-room-' + String(code).trim().toLowerCase();
+                    const conn = peer.connect(targetPeerId, { reliable: true });
+                    attachCloudPeerConnection(conn, false);
+                });
+            } catch (e) {}
+        }
+
+        function startCloudQuickMatchOnPeerJS() {
+            if (typeof Peer === 'undefined') return;
+            try {
+                if (h2hPeer) { h2hPeer.destroy(); h2hPeer = null; }
+                const lobbyPeerId = 'frng-v2-quickmatch-lobby-v2';
+                const hostPeer = new Peer(lobbyPeerId);
+                h2hPeer = hostPeer;
+                hostPeer.on('open', () => {
+                    updateH2HConnectionHeaderUI();
+                });
+                hostPeer.on('connection', (conn) => {
+                    attachCloudPeerConnection(conn, true);
+                });
+                hostPeer.on('error', (err) => {
+                    // If another player is already waiting in the global quickmatch slot, connect to them as Guest!
+                    if (err && err.type === 'unavailable-id' && h2hInQueue) {
+                        try { hostPeer.destroy(); } catch (e) {}
+                        const guestPeer = new Peer();
+                        h2hPeer = guestPeer;
+                        guestPeer.on('open', () => {
+                            const conn = guestPeer.connect(lobbyPeerId, { reliable: true });
+                            attachCloudPeerConnection(conn, false);
+                        });
+                    }
+                });
+            } catch (e) {}
+        }
+
         function sendH2HWsMessage(obj) {
             if (h2hWs && h2hWs.readyState === WebSocket.OPEN) {
                 try {
                     h2hWs.send(JSON.stringify(obj));
+                    return true;
+                } catch (e) {}
+            }
+            if (h2hPeerConn && h2hPeerConnected && ['pvp_input', 'pvp_action', 'pvp_state', 'pvp_event', 'pvp_emote'].includes(obj.type)) {
+                try {
+                    h2hPeerConn.send(obj);
                     return true;
                 } catch (e) {}
             }
@@ -10514,13 +10671,16 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (pill) {
                 if (h2hWsConnected) {
                     pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-400 text-slate-950 px-3 py-1 rounded-full shadow';
-                    pill.innerHTML = `🟢 Server Connected (${h2hPingMs}ms)`;
+                    pill.innerHTML = `🟢 Node Server Connected (${h2hPingMs}ms)`;
+                } else if (h2hPeerConnected) {
+                    pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold bg-emerald-400 text-slate-950 px-3 py-1 rounded-full shadow';
+                    pill.innerHTML = `🟢 Cloud P2P Connected (Live 1v1)`;
                 } else if (localPeerCount > 0) {
                     pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold bg-sky-400 text-slate-950 px-3 py-1 rounded-full shadow';
-                    pill.innerHTML = `🟢 Local Browser P2P Ready (1ms)`;
+                    pill.innerHTML = `🟢 Local + Cloud P2P Ready (1ms)`;
                 } else {
-                    pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold bg-slate-800 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full';
-                    pill.innerHTML = `🟡 Standby (Start server.js or open 2nd Tab)`;
+                    pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-400/40 px-3 py-1 rounded-full';
+                    pill.innerHTML = `🌐 Cloud P2P Ready (No Server Required — Use Find Match or Room Code!)`;
                 }
             }
             if (popPill) {
@@ -10951,7 +11111,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     sendH2HWsMessage({ type: 'join_queue', ...pkt });
                 }
             } else {
-                // Local Browser Bus Queue + also attempt WebSocket connection in background
+                // Local Browser Bus Queue + Global PeerJS Cloud Quick-Match (works across the internet without Render!)
                 h2hInQueue = !h2hInQueue;
                 syncMyProfileToH2HServer();
                 for (const peer of h2hLocalPeers.values()) {
@@ -10959,6 +11119,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                         startLocalBusMatchWithPeer(peer);
                         return;
                     }
+                }
+                if (h2hInQueue) {
+                    startCloudQuickMatchOnPeerJS();
+                } else if (h2hPeer) {
+                    try { h2hPeer.destroy(); h2hPeer = null; } catch (e) {}
                 }
                 renderH2HView();
             }
@@ -10978,6 +11143,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                 h2hCreatedRoomCode = String(Math.floor(1000 + Math.random() * 9000));
                 h2hInQueue = false;
                 syncMyProfileToH2HServer();
+                hostCloudRoomOnPeerJS(h2hCreatedRoomCode);
                 renderH2HView();
             }
         }
@@ -10986,6 +11152,9 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             h2hCreatedRoomCode = null;
             if (h2hWsConnected) {
                 sendH2HWsMessage({ type: 'cancel_room' });
+            }
+            if (h2hPeer) {
+                try { h2hPeer.destroy(); h2hPeer = null; } catch (e) {}
             }
             renderH2HView();
         }
@@ -11002,13 +11171,16 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                     roomId: explicitRoomId,
                     ...pkt
                 });
-            } else if (h2hLocalBus) {
-                h2hLocalBus.postMessage({
-                    type: 'bus_join_room',
-                    senderId: h2hMyClientId,
-                    code,
-                    profile: pkt
-                });
+            } else {
+                if (h2hLocalBus) {
+                    h2hLocalBus.postMessage({
+                        type: 'bus_join_room',
+                        senderId: h2hMyClientId,
+                        code,
+                        profile: pkt
+                    });
+                }
+                joinCloudRoomOnPeerJS(code);
             }
         }
 
@@ -14101,6 +14273,7 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
             if (n.includes('haaland')) return 'zen';
             if (n.includes('bellingham')) return 'bellingham';
             if (n.includes('gyökeres') || n.includes('gyokeres') || n.includes('dybala') || n.includes('griezmann')) return 'mask';
+            if (n.includes('choucha')) return 'choucha_cut_head';
             if (n.includes('palmer') || n.includes('delap')) return 'cold';
             if (n.includes('zico') || n.includes('ronaldinho') || n.includes('neymar') || n.includes('vinicius') || n.includes('garrincha') || n.includes('pelé') || n.includes('pele')) return 'samba';
             return 'standard';
@@ -14877,6 +15050,28 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                             showMatchToast(`🎯👑 ${s.name.split(' ').pop().toUpperCase()} SALUTES THE CROWD!`);
                         }
                     }
+                } else if (celType === 'choucha_cut_head') {
+                    // Choucha (Prime) Cut-Head Celebration: Sprints to corner, stops cold, and performs the signature Cut-Head gesture!
+                    if (celebrationTimer < 42) {
+                        s.vx = (dx / dist) * 5.0;
+                        s.vy = (dy / dist) * 5.0;
+                        s.facingX = dx / dist;
+                        s.facingY = dy / dist;
+                        s.x += s.vx;
+                        s.y += s.vy;
+                        s.celebrationJump = Math.abs(Math.sin(celebrationTimer * 0.25)) * 4;
+                        s.celPose = 0;
+                    } else {
+                        s.vx = 0;
+                        s.vy = 0;
+                        s.celebrationJump = 0;
+                        s.celPose = 24;
+                        if (celebrationTimer === 44) {
+                            const msg = "🔪🥶 CHOUCHA (PRIME) — CUT-HEAD CELEBRATION!";
+                            if (badge) badge.innerText = msg;
+                            showMatchToast(msg);
+                        }
+                    }
                 } else if (celType === 'mask' || celType === 'cold') {
                     if (celebrationTimer < 44) {
                         s.vx = (dx / dist) * 4.6;
@@ -15441,6 +15636,8 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                             ultraStatus.innerText = `⚡ INSTANT FULL SHOT + OFF-BALL SPD (${activePlayer.secretBuffMinutesLeft}M LEFT)`;
                         } else if (bType === 'mudryk_2012') {
                             ultraStatus.innerText = `👟 FAST STEPOVERS + FLAT SHOT PWR (${activePlayer.secretBuffMinutesLeft}M LEFT)`;
+                        } else if (bType === 'choucha_prime') {
+                            ultraStatus.innerText = `🎯 TOP-BINS FINESSE HEIGHT (${activePlayer.secretBuffMinutesLeft}M LEFT)`;
                         } else {
                             ultraStatus.innerText = `🔥 99 OVR (${activePlayer.secretBuffMinutesLeft}M LEFT)`;
                         }
@@ -18398,6 +18595,11 @@ All stats (ovr, pac, sho, pas, dri, def, phy) must be integers between 35 and 99
                         const strideSwing = moveSpeed > 0.25 ? Math.sin(performance.now() * 0.018 + p.x * 0.05) * 0.42 : 0.15;
                         m.leftArm.rotation.set(0.22, 0, -strideSwing);
                         m.rightArm.rotation.set(-0.18, 0, 2.92);
+                    } else if (pose === 24) {
+                        // Choucha (Prime) Cut-Head Celebration: Right hand raised to neck height slicing horizontally across throat!
+                        const slash = Math.sin(tick * 0.38) * 0.58;
+                        m.leftArm.rotation.set(0.28, 0, 0.35);
+                        m.rightArm.rotation.set(-0.88, 0.35 + slash, 1.62);
                     } else if (p.isGK && ball.possessor !== p && gameState === 'playing') {
                         // Realistic Goalkeeper Ready Stance (steady and still during Free Kicks & Penalties)
                         const gkWave = isSetPieceCam ? 0 : Math.sin(performance.now() * 0.012 + p.team * 2.0) * 0.14;

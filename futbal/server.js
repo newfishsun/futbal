@@ -3,9 +3,7 @@
  * Run locally:   node server.js   -> http://localhost:3000
  * Render Cloud:  Start Command: node server.js (Health Check: /healthz)
  */
-"scripts"; {
-  "start"; "node server.js"
-}
+
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
